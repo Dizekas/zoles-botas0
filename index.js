@@ -9,7 +9,7 @@ const client = new Client({
     ]
 });
 
-const TOKEN = 'MTM0ODczNjA5MDMxNTQyMzgyNQ.GebKxQ.R43KjWOaaFKCJoWc9Lau4SBgIQ13bFx_-pe6gw';
+const TOKEN = process.env.TOKEN;
 const PREFIX = '%';
 const DATA_FILE = './watering.json';
 const CHECK_CHANNEL_ID = "1348756265219920024"; // Įrašyk kanalo ID, kur bus atnaujinama lentelė
