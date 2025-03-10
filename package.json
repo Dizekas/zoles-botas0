@@ -1,0 +1,14 @@
+{
+  "name": "discord-watering-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for watering reminders",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^14.14.1"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
