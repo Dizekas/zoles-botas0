@@ -56,25 +56,25 @@ client.on('messageCreate', async message => {
     }
 
     if (command === 'set') {
-        if (!args[0] || isNaN(args[0]) || !args[1]) {
-            return message.reply('❌ Naudojimas: `%set [namo numeris] [savininkas] [dienos]`');
+        if (args.length < 4) {
+            return message.reply('❌ Naudojimas: `%set [namo numeris] [laistymo lygis] [savininkas] [dienos]`');
         }
 
         const houseNumber = args[0];
-        const owner = args[1];
-        const days = args[2] ? parseInt(args[2]) : null;
+        const wateringLevel = parseInt(args[1]);
+        const owner = args[2];
+        const days = parseInt(args[3]);
 
         if (!wateringData[userId][houseNumber]) {
             return message.reply(`❌ Namas ${houseNumber} nerastas.`);
         }
 
+        wateringData[userId][houseNumber].percent = wateringLevel;
         wateringData[userId][houseNumber].owner = owner;
-        if (days !== null && !isNaN(days)) {
-            wateringData[userId][houseNumber].plantDays = days;
-        }
+        wateringData[userId][houseNumber].plantDays = days;
 
         saveWateringData(wateringData);
-        return message.reply(`✅ Namo ${houseNumber} informacija atnaujinta: Savininkas - **${owner}**, Augalo laikas - **${days !== null ? days + ' dienos' : 'nekeista'}**.`);
+        return message.reply(`✅ **Namo ${houseNumber} informacija atnaujinta:**\n🌿 **Laistymo lygis:** ${wateringLevel}%\n🏠 **Savininkas:** ${owner}\n🕒 **Augalo dienos:** ${days}`);
     }
 
     if (command === 'check') {
@@ -110,58 +110,5 @@ client.on('messageCreate', async message => {
         return message.channel.send({ embeds: [embed] });
     }
 });
-
-// Automatinis palaistymo procentų mažinimas kas 30 minučių
-setInterval(() => {
-    const now = Date.now();
-    for (const userId in wateringData) {
-        for (const houseNumber in wateringData[userId]) {
-            const data = wateringData[userId][houseNumber];
-            const hoursPassed = (now - data.lastUpdate) / (1000 * 60 * 60);
-            const lostWater = Math.floor(hoursPassed * 5);
-
-            data.percent = Math.max(0, Math.min(150, data.percent - lostWater));
-            data.lastUpdate = now;
-        }
-    }
-    saveWateringData(wateringData);
-}, 30 * 60 * 1000);
-
-// Automatinis %check kas 25 min
-setInterval(async () => {
-    updatePlantDays();
-
-    const channel = await client.channels.fetch(CHECK_CHANNEL_ID);
-    if (!channel) return console.log("❌ Nerastas kanalas!");
-
-    let embed = new EmbedBuilder()
-        .setColor(0x00AE86)
-        .setTitle("🏠 Tavo namų palaistymo lygiai")
-        .setDescription("Čia gali matyti kiekvieno savo namo palaistymo procentus ir augalo laiką.")
-        .setTimestamp()
-        .setFooter({ text: "Informacija atnaujinta automatiškai" });
-
-    for (const userId in wateringData) {
-        for (const houseNumber in wateringData[userId]) {
-            const house = wateringData[userId][houseNumber];
-            embed.addFields({ 
-                name: `📌 Namas ${houseNumber}nr - ${house.owner}`, 
-                value: `🌿 **${house.percent}%** | 🕒 **${house.plantDays} dienos**`, 
-                inline: true
-            });
-        }
-    }
-
-    if (lastCheckMessage) {
-        lastCheckMessage.edit({ embeds: [embed] }).catch(err => {
-            console.error("Klaida atnaujinant žinutę:", err);
-            lastCheckMessage = null;
-        });
-    } else {
-        channel.send({ embeds: [embed] }).then(msg => {
-            lastCheckMessage = msg;
-        });
-    }
-}, 25 * 60 * 1000);
 
 client.login(TOKEN);
