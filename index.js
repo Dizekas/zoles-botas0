@@ -10,7 +10,7 @@ const client = new Client({
 });
 
 const TOKEN = process.env.TOKEN;
-const CHECK_CHANNEL_ID = process.env.CHANNEL_ID;
+const CHECK_CHANNEL_ID = "1348756265219920024";
 const DATA_FILE = './watering.json';
 let lastCheckMessage = null;
 
