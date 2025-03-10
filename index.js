@@ -10,7 +10,7 @@ const client = new Client({
 });
 
 const TOKEN = process.env.TOKEN;
-const CHECK_CHANNEL_ID = "1348756265219920024";
+const CHECK_CHANNEL_ID = 1348756265219920024; // Patikrink, kad tai tikrai tavo kanalo ID!
 const DATA_FILE = './watering.json';
 let lastCheckMessage = null;
 
@@ -43,6 +43,47 @@ function updatePlantDays() {
     }
 }
 
+// Boto paleidimas ir automatinis atnaujinimas
+client.once('ready', async () => {
+    console.log(`✅ Botas prisijungė kaip ${client.user.tag}`);
+
+    const channel = await client.channels.fetch(CHECK_CHANNEL_ID).catch(err => console.error("❌ Neradau kanalo:", err));
+    if (!channel) return;
+
+    setInterval(async () => {
+        updatePlantDays();
+
+        let embed = new EmbedBuilder()
+            .setColor(0x00AE86)
+            .setTitle("🏠 Tavo namų palaistymo lygiai")
+            .setDescription("Čia gali matyti kiekvieno savo namo palaistymo procentus ir augalo laiką.")
+            .setTimestamp()
+            .setFooter({ text: "Informacija atnaujinta automatiškai" });
+
+        for (const userId in wateringData) {
+            for (const houseNumber in wateringData[userId]) {
+                const house = wateringData[userId][houseNumber];
+                embed.addFields({ 
+                    name: `📌 Namas ${houseNumber}nr - ${house.owner}`, 
+                    value: `🌿 **${house.percent}%** | 🕒 **${house.plantDays} dienos**`, 
+                    inline: true
+                });
+            }
+        }
+
+        if (lastCheckMessage) {
+            lastCheckMessage.edit({ embeds: [embed] }).catch(err => {
+                console.error("❌ Klaida atnaujinant žinutę:", err);
+                lastCheckMessage = null;
+            });
+        } else {
+            channel.send({ embeds: [embed] }).then(msg => {
+                lastCheckMessage = msg;
+            });
+        }
+    }, 60 * 1000); // Atnaujina kas 1 minutę
+});
+
 // Komandų apdorojimas
 client.on('messageCreate', async message => {
     if (!message.content.startsWith('%') || message.author.bot) return;
@@ -69,7 +110,7 @@ client.on('messageCreate', async message => {
             return message.reply(`❌ Namas ${houseNumber} nerastas.`);
         }
 
-        wateringData[userId][houseNumber].percent = wateringLevel;
+        wateringData[userId][houseNumber].percent = Math.max(0, Math.min(150, wateringLevel));
         wateringData[userId][houseNumber].owner = owner;
         wateringData[userId][houseNumber].plantDays = days;
 
