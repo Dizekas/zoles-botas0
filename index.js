@@ -63,6 +63,12 @@ client.once('ready', async () => {
         for (const userId in wateringData) {
             for (const houseNumber in wateringData[userId]) {
                 const house = wateringData[userId][houseNumber];
+
+                // Filtruojame blogus įrašus
+                if (!house || house.percent === undefined || house.plantDays === undefined || !house.owner) {
+                    continue;
+                }
+
                 embed.addFields({ 
                     name: `📌 Namas ${houseNumber}nr - ${house.owner}`, 
                     value: `🌿 **${house.percent}%** | 🕒 **${house.plantDays} dienos**`, 
@@ -150,6 +156,37 @@ client.on('messageCreate', async message => {
 
         saveWateringData(wateringData);
         return message.reply(`✅ **Namo ${houseNumber} informacija atnaujinta:**\n🌿 **Laistymo lygis:** ${wateringLevel}%\n🏠 **Savininkas:** ${owner}\n🕒 **Augalo dienos:** ${days}`);
+    }
+
+    if (command === 'check') {
+        updatePlantDays();
+
+        if (Object.keys(wateringData[userId]).length === 0) {
+            return message.reply('❌ Neturi pridėtų namų. Naudok `%addhouse [namas] [savininkas]`.');
+        }
+
+        let embed = new EmbedBuilder()
+            .setColor(0x00AE86)
+            .setTitle("🏠 Tavo namų palaistymo lygiai")
+            .setDescription("Čia gali matyti kiekvieno savo namo palaistymo procentus ir augalo laiką.")
+            .setTimestamp()
+            .setFooter({ text: "Informacija atnaujinta" });
+
+        for (const houseNumber in wateringData[userId]) {
+            const house = wateringData[userId][houseNumber];
+
+            if (!house || house.percent === undefined || house.plantDays === undefined || !house.owner) {
+                continue;
+            }
+
+            embed.addFields({ 
+                name: `📌 Namas ${houseNumber}nr - ${house.owner}`, 
+                value: `🌿 **${house.percent}%** | 🕒 **${house.plantDays} dienos**`, 
+                inline: true
+            });
+        }
+
+        return message.channel.send({ embeds: [embed] });
     }
 });
 
