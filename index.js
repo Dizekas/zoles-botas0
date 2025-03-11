@@ -99,7 +99,7 @@ client.once('ready', async () => {
                 lastCheckMessage = msg;
             });
         }
-    }, 60 * 1000); // Atnaujina kas 1 minutę
+    }, 60 * 60 * 1000); // Atnaujina kas 1 valandą
 });
 
 // Komandų apdorojimas
