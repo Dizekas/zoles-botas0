@@ -10,7 +10,7 @@ const client = new Client({
 });
 
 const TOKEN = process.env.TOKEN;
-const CHECK_CHANNEL_ID = "1348756265219920024"; // Patikrink, ar tikrai teisingas ID!
+const CHECK_CHANNEL_ID = "1348756265219920024"; // Kanalo ID su kabutėmis
 const DATA_FILE = './watering.json';
 let lastCheckMessage = null;
 
@@ -43,16 +43,20 @@ function updatePlantDays() {
     }
 }
 
-// Laistymo mažėjimas (1% per minutę - testavimo režimas)
+// Laistymo mažėjimas (4% per valandą)
 function decreaseWateringLevels() {
-    for (const userId in wateringData) {
-        for (const houseNumber in wateringData[userId]) {
-            if (wateringData[userId][houseNumber].percent > 0) {
-                wateringData[userId][houseNumber].percent -= 4; // Testavimo režimas
+    const now = Date.now();
+    if (!wateringData.lastDecreaseTime || now - wateringData.lastDecreaseTime >= 60 * 60 * 1000) {
+        wateringData.lastDecreaseTime = now; // Atžymi laiką
+        for (const userId in wateringData) {
+            for (const houseNumber in wateringData[userId]) {
+                if (wateringData[userId][houseNumber].percent > 0) {
+                    wateringData[userId][houseNumber].percent -= 4; // 4% per valandą
+                }
             }
         }
+        saveWateringData(wateringData);
     }
-    saveWateringData(wateringData);
 }
 
 // Boto paleidimas ir automatinis atnaujinimas
@@ -99,7 +103,7 @@ client.once('ready', async () => {
                 lastCheckMessage = msg;
             });
         }
-    }, 60 * 60 * 1000); // Atnaujina kas 1 valandą
+    }, 60 * 1000); // Atnaujina kas 1 minutę
 });
 
 // Komandų apdorojimas
