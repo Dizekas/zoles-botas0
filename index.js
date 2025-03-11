@@ -10,7 +10,7 @@ const client = new Client({
 });
 
 const TOKEN = process.env.TOKEN;
-const CHECK_CHANNEL_ID = 1348756265219920024; // Patikrink, ar tikrai teisingas ID!
+const CHECK_CHANNEL_ID = "1348756265219920024"; // Patikrink, ar tikrai teisingas ID!
 const DATA_FILE = './watering.json';
 let lastCheckMessage = null;
 
