@@ -48,7 +48,7 @@ function decreaseWateringLevels() {
     for (const userId in wateringData) {
         for (const houseNumber in wateringData[userId]) {
             if (wateringData[userId][houseNumber].percent > 0) {
-                wateringData[userId][houseNumber].percent -= 1; // Testavimo režimas
+                wateringData[userId][houseNumber].percent -= 4; // Testavimo režimas
             }
         }
     }
