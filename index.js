@@ -43,12 +43,12 @@ function updatePlantDays() {
     }
 }
 
-// Laistymo mažėjimas (testavimui: 1% per minutę)
+// Laistymo mažėjimas (1% per minutę - testavimo režimas)
 function decreaseWateringLevels() {
     for (const userId in wateringData) {
         for (const houseNumber in wateringData[userId]) {
             if (wateringData[userId][houseNumber].percent > 0) {
-                wateringData[userId][houseNumber].percent -= 1; // Mažinam 1% per minutę
+                wateringData[userId][houseNumber].percent -= 1; // Testavimo režimas
             }
         }
     }
@@ -64,7 +64,7 @@ client.once('ready', async () => {
 
     setInterval(async () => {
         updatePlantDays();
-        decreaseWateringLevels(); // Mažiname laistymo lygį
+        decreaseWateringLevels(); // Laistymo mažėjimas
 
         let embed = new EmbedBuilder()
             .setColor(0x00AE86)
@@ -112,6 +112,40 @@ client.on('messageCreate', async message => {
 
     if (!wateringData[userId]) {
         wateringData[userId] = {};
+    }
+
+    if (command === 'addhouse') {
+        if (!args[0] || isNaN(args[0]) || !args[1]) {
+            return message.reply('❌ Naudojimas: `%addhouse [namo numeris] [savininkas]`');
+        }
+
+        const houseNumber = args[0];
+        const owner = args.slice(1).join(" ");
+
+        if (wateringData[userId][houseNumber]) {
+            return message.reply(`❌ Namas ${houseNumber} jau egzistuoja.`);
+        }
+
+        wateringData[userId][houseNumber] = { percent: 150, plantDays: 1, lastUpdate: Date.now(), owner: owner };
+        saveWateringData(wateringData);
+        return message.reply(`✅ **Namas ${houseNumber} pridėtas.**\n🌿 **Laistymo lygis:** 150%\n🏠 **Savininkas:** ${owner}\n🕒 **Augalo dienos:** 1`);
+    }
+
+    if (command === 'delhouse') {
+        if (!args[0] || isNaN(args[0])) {
+            return message.reply('❌ Naudojimas: `%delhouse [namo numeris]`');
+        }
+
+        const houseNumber = args[0];
+
+        if (!wateringData[userId][houseNumber]) {
+            return message.reply(`❌ Namas ${houseNumber} nerastas.`);
+        }
+
+        delete wateringData[userId][houseNumber];
+        saveWateringData(wateringData);
+
+        return message.reply(`✅ **Namas ${houseNumber} sėkmingai ištrintas!**`);
     }
 
     if (command === 'set') {
