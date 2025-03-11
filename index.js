@@ -10,7 +10,7 @@ const client = new Client({
 });
 
 const TOKEN = process.env.TOKEN;
-const CHECK_CHANNEL_ID = "1348756265219920024"; // Patikrink, ar tikrai teisingas ID!
+const CHECK_CHANNEL_ID = 1348756265219920024; // Patikrink, ar tikrai teisingas ID!
 const DATA_FILE = './watering.json';
 let lastCheckMessage = null;
 
@@ -43,6 +43,18 @@ function updatePlantDays() {
     }
 }
 
+// Laistymo mažėjimas (testavimui: 1% per minutę)
+function decreaseWateringLevels() {
+    for (const userId in wateringData) {
+        for (const houseNumber in wateringData[userId]) {
+            if (wateringData[userId][houseNumber].percent > 0) {
+                wateringData[userId][houseNumber].percent -= 1; // Mažinam 1% per minutę
+            }
+        }
+    }
+    saveWateringData(wateringData);
+}
+
 // Boto paleidimas ir automatinis atnaujinimas
 client.once('ready', async () => {
     console.log(`✅ Botas prisijungė kaip ${client.user.tag}`);
@@ -52,6 +64,7 @@ client.once('ready', async () => {
 
     setInterval(async () => {
         updatePlantDays();
+        decreaseWateringLevels(); // Mažiname laistymo lygį
 
         let embed = new EmbedBuilder()
             .setColor(0x00AE86)
@@ -64,7 +77,6 @@ client.once('ready', async () => {
             for (const houseNumber in wateringData[userId]) {
                 const house = wateringData[userId][houseNumber];
 
-                // Filtruojame blogus įrašus
                 if (!house || house.percent === undefined || house.plantDays === undefined || !house.owner) {
                     continue;
                 }
@@ -102,40 +114,6 @@ client.on('messageCreate', async message => {
         wateringData[userId] = {};
     }
 
-    if (command === 'addhouse') {
-        if (!args[0] || isNaN(args[0]) || !args[1]) {
-            return message.reply('❌ Naudojimas: `%addhouse [namo numeris] [savininkas]`');
-        }
-
-        const houseNumber = args[0];
-        const owner = args.slice(1).join(" ");
-
-        if (wateringData[userId][houseNumber]) {
-            return message.reply(`❌ Namas ${houseNumber} jau egzistuoja.`);
-        }
-
-        wateringData[userId][houseNumber] = { percent: 150, plantDays: 1, lastUpdate: Date.now(), owner: owner };
-        saveWateringData(wateringData);
-        return message.reply(`✅ **Namas ${houseNumber} pridėtas.**\n🌿 **Laistymo lygis:** 150%\n🏠 **Savininkas:** ${owner}\n🕒 **Augalo dienos:** 1`);
-    }
-
-    if (command === 'delhouse') {
-        if (!args[0] || isNaN(args[0])) {
-            return message.reply('❌ Naudojimas: `%delhouse [namo numeris]`');
-        }
-
-        const houseNumber = args[0];
-
-        if (!wateringData[userId][houseNumber]) {
-            return message.reply(`❌ Namas ${houseNumber} nerastas.`);
-        }
-
-        delete wateringData[userId][houseNumber];
-        saveWateringData(wateringData);
-
-        return message.reply(`✅ **Namas ${houseNumber} sėkmingai ištrintas!**`);
-    }
-
     if (command === 'set') {
         if (args.length < 4) {
             return message.reply('❌ Naudojimas: `%set [namo numeris] [laistymo lygis] [savininkas] [dienos]`');
@@ -156,37 +134,6 @@ client.on('messageCreate', async message => {
 
         saveWateringData(wateringData);
         return message.reply(`✅ **Namo ${houseNumber} informacija atnaujinta:**\n🌿 **Laistymo lygis:** ${wateringLevel}%\n🏠 **Savininkas:** ${owner}\n🕒 **Augalo dienos:** ${days}`);
-    }
-
-    if (command === 'check') {
-        updatePlantDays();
-
-        if (Object.keys(wateringData[userId]).length === 0) {
-            return message.reply('❌ Neturi pridėtų namų. Naudok `%addhouse [namas] [savininkas]`.');
-        }
-
-        let embed = new EmbedBuilder()
-            .setColor(0x00AE86)
-            .setTitle("🏠 Tavo namų palaistymo lygiai")
-            .setDescription("Čia gali matyti kiekvieno savo namo palaistymo procentus ir augalo laiką.")
-            .setTimestamp()
-            .setFooter({ text: "Informacija atnaujinta" });
-
-        for (const houseNumber in wateringData[userId]) {
-            const house = wateringData[userId][houseNumber];
-
-            if (!house || house.percent === undefined || house.plantDays === undefined || !house.owner) {
-                continue;
-            }
-
-            embed.addFields({ 
-                name: `📌 Namas ${houseNumber}nr - ${house.owner}`, 
-                value: `🌿 **${house.percent}%** | 🕒 **${house.plantDays} dienos**`, 
-                inline: true
-            });
-        }
-
-        return message.channel.send({ embeds: [embed] });
     }
 });
 
