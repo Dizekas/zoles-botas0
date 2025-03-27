@@ -1,39 +1,37 @@
+
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMessages, 
-        GatewayIntentBits.MessageContent 
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
     ]
 });
 
 const TOKEN = process.env.TOKEN;
-const CHECK_CHANNEL_ID = "1348756265219920024"; // Kanalo ID su kabutėmis
+const CHECK_CHANNEL_ID = "1348756265219920024";
 const DATA_FILE = './watering.json';
-let lastCheckMessage = null;
 
-// Pakrauna duomenis iš failo
 function loadWateringData() {
     if (fs.existsSync(DATA_FILE)) {
         return JSON.parse(fs.readFileSync(DATA_FILE));
     }
-    return {};
+    return { lastUpdate: null, lastMessageId: null };
 }
 
-// Išsaugo duomenis faile
 function saveWateringData(data) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
 let wateringData = loadWateringData();
 
-// Automatinis augalo laiko didinimas po 00:00
 function updatePlantDays() {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
     if (wateringData.lastUpdate !== today) {
         for (const userId in wateringData) {
+            if (userId === "lastMessageId" || userId === "lastUpdate" || userId === "lastDecreaseTime") continue;
             for (const houseNumber in wateringData[userId]) {
                 wateringData[userId][houseNumber].plantDays += 1;
             }
@@ -43,15 +41,15 @@ function updatePlantDays() {
     }
 }
 
-// Laistymo mažėjimas (4% per valandą)
 function decreaseWateringLevels() {
     const now = Date.now();
     if (!wateringData.lastDecreaseTime || now - wateringData.lastDecreaseTime >= 60 * 60 * 1000) {
-        wateringData.lastDecreaseTime = now; // Atžymi laiką
+        wateringData.lastDecreaseTime = now;
         for (const userId in wateringData) {
+            if (userId === "lastMessageId" || userId === "lastUpdate" || userId === "lastDecreaseTime") continue;
             for (const houseNumber in wateringData[userId]) {
                 if (wateringData[userId][houseNumber].percent > 0) {
-                    wateringData[userId][houseNumber].percent -= 4; // 4% per valandą
+                    wateringData[userId][houseNumber].percent -= 4;
                 }
             }
         }
@@ -59,7 +57,6 @@ function decreaseWateringLevels() {
     }
 }
 
-// Boto paleidimas ir automatinis atnaujinimas
 client.once('ready', async () => {
     console.log(`✅ Botas prisijungė kaip ${client.user.tag}`);
 
@@ -68,111 +65,47 @@ client.once('ready', async () => {
 
     setInterval(async () => {
         updatePlantDays();
-        decreaseWateringLevels(); // Laistymo mažėjimas
+        decreaseWateringLevels();
 
-        let embed = new EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setColor(0x00AE86)
-            .setTitle("🏠 Tavo namų palaistymo lygiai")
-            .setDescription("Čia gali matyti kiekvieno savo namo palaistymo procentus ir augalo laiką.")
+            .setTitle("🌱 Žolės palaistymo lentelė")
             .setTimestamp()
-            .setFooter({ text: "Informacija atnaujinta automatiškai" });
+            .setFooter({ text: "Automatinis atnaujinimas" });
+
+        const grouped = {};
 
         for (const userId in wateringData) {
+            if (userId === "lastMessageId" || userId === "lastUpdate" || userId === "lastDecreaseTime") continue;
             for (const houseNumber in wateringData[userId]) {
                 const house = wateringData[userId][houseNumber];
-
-                if (!house || house.percent === undefined || house.plantDays === undefined || !house.owner) {
-                    continue;
-                }
-
-                embed.addFields({ 
-                    name: `📌 Namas ${houseNumber}nr - ${house.owner}`, 
-                    value: `🌿 **${house.percent}%** | 🕒 **${house.plantDays} dienos**`, 
-                    inline: true
-                });
+                if (!house || house.percent === undefined || house.plantDays === undefined || !house.owner) continue;
+                if (!grouped[house.owner]) grouped[house.owner] = [];
+                grouped[house.owner].push(
+                    `📌 Namas ${houseNumber}nr - 🌿 **${house.percent}%** | 🕒 **${house.plantDays} dienos**`
+                );
             }
         }
 
-        if (lastCheckMessage) {
-            lastCheckMessage.edit({ embeds: [embed] }).catch(err => {
-                console.error("❌ Klaida atnaujinant žinutę:", err);
-                lastCheckMessage = null;
-            });
-        } else {
-            channel.send({ embeds: [embed] }).then(msg => {
-                lastCheckMessage = msg;
-            });
-        }
-    }, 60 * 1000); // Atnaujina kas 1 minutę
-});
-
-// Komandų apdorojimas
-client.on('messageCreate', async message => {
-    if (!message.content.startsWith('%') || message.author.bot) return;
-
-    const args = message.content.slice(1).trim().split(/ +/);
-    const command = args.shift().toLowerCase();
-    const userId = message.author.id;
-
-    if (!wateringData[userId]) {
-        wateringData[userId] = {};
-    }
-
-    if (command === 'addhouse') {
-        if (!args[0] || isNaN(args[0]) || !args[1]) {
-            return message.reply('❌ Naudojimas: `%addhouse [namo numeris] [savininkas]`');
+        for (const owner in grouped) {
+            embed.addFields({ name: `🏡 ${owner} namai:`, value: grouped[owner].join("\n"), inline: false });
         }
 
-        const houseNumber = args[0];
-        const owner = args.slice(1).join(" ");
-
-        if (wateringData[userId][houseNumber]) {
-            return message.reply(`❌ Namas ${houseNumber} jau egzistuoja.`);
+        try {
+            if (wateringData.lastMessageId) {
+                const prevMsg = await channel.messages.fetch(wateringData.lastMessageId);
+                await prevMsg.edit({ embeds: [embed] });
+            } else {
+                const sent = await channel.send({ embeds: [embed] });
+                wateringData.lastMessageId = sent.id;
+                saveWateringData(wateringData);
+            }
+        } catch {
+            const sent = await channel.send({ embeds: [embed] });
+            wateringData.lastMessageId = sent.id;
+            saveWateringData(wateringData);
         }
-
-        wateringData[userId][houseNumber] = { percent: 150, plantDays: 1, lastUpdate: Date.now(), owner: owner };
-        saveWateringData(wateringData);
-        return message.reply(`✅ **Namas ${houseNumber} pridėtas.**\n🌿 **Laistymo lygis:** 150%\n🏠 **Savininkas:** ${owner}\n🕒 **Augalo dienos:** 1`);
-    }
-
-    if (command === 'delhouse') {
-        if (!args[0] || isNaN(args[0])) {
-            return message.reply('❌ Naudojimas: `%delhouse [namo numeris]`');
-        }
-
-        const houseNumber = args[0];
-
-        if (!wateringData[userId][houseNumber]) {
-            return message.reply(`❌ Namas ${houseNumber} nerastas.`);
-        }
-
-        delete wateringData[userId][houseNumber];
-        saveWateringData(wateringData);
-
-        return message.reply(`✅ **Namas ${houseNumber} sėkmingai ištrintas!**`);
-    }
-
-    if (command === 'set') {
-        if (args.length < 4) {
-            return message.reply('❌ Naudojimas: `%set [namo numeris] [laistymo lygis] [savininkas] [dienos]`');
-        }
-
-        const houseNumber = args[0];
-        const wateringLevel = parseInt(args[1]);
-        const owner = args[2];
-        const days = parseInt(args[3]);
-
-        if (!wateringData[userId][houseNumber]) {
-            return message.reply(`❌ Namas ${houseNumber} nerastas.`);
-        }
-
-        wateringData[userId][houseNumber].percent = Math.max(0, Math.min(150, wateringLevel));
-        wateringData[userId][houseNumber].owner = owner;
-        wateringData[userId][houseNumber].plantDays = days;
-
-        saveWateringData(wateringData);
-        return message.reply(`✅ **Namo ${houseNumber} informacija atnaujinta:**\n🌿 **Laistymo lygis:** ${wateringLevel}%\n🏠 **Savininkas:** ${owner}\n🕒 **Augalo dienos:** ${days}`);
-    }
+    }, 60 * 1000);
 });
 
 client.login(TOKEN);
