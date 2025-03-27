@@ -2,26 +2,52 @@
   "lastUpdate": "2025-03-11",
   "lastMessageId": "123456789012345678",
   "user1": {
-    "50": {
+    "86": {
       "owner": "Nico_Scorpio",
       "percent": 120,
       "plantDays": 3
     },
-    "86": {
+    "82": {
       "owner": "Nico_Scorpio",
       "percent": 110,
       "plantDays": 2
     }
   },
   "user2": {
-    "101": {
+    "60": {
+      "owner": "Nico_Scorpios",
+      "percent": 115,
+      "plantDays": 4
+    },
+    "65": {
+      "owner": "Nico_Scorpios",
+      "percent": 105,
+      "plantDays": 1
+    }
+  },
+  "user3": {
+    "45": {
       "owner": "Kadash_Kobreti",
-      "percent": 90,
+      "percent": 95,
       "plantDays": 5
     },
-    "102": {
+    "50": {
       "owner": "Kadash_Kobreti",
-      "percent": 75,
+      "percent": 85,
+      "plantDays": 4
+    }
+  },
+  "user4": {
+    "102": {
+      "owner": "Aiste_Hanley",
+      "percent": 90,
+      "plantDays": 6
+    }
+  },
+  "user5": {
+    "125": {
+      "owner": "Dolce_Gabannna",
+      "percent": 80,
       "plantDays": 7
     }
   }
