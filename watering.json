@@ -1,16 +1,28 @@
 {
-  "251431218120228864": {
+  "lastUpdate": "2025-03-11",
+  "lastMessageId": "123456789012345678",
+  "user1": {
     "50": {
-      "percent": 110,
-      "lastUpdate": 1741637889318
+      "owner": "Nico_Scorpio",
+      "percent": 120,
+      "plantDays": 3
     },
     "86": {
-      "percent": 130,
-      "lastUpdate": 1741637889318
+      "owner": "Nico_Scorpio",
+      "percent": 110,
+      "plantDays": 2
+    }
+  },
+  "user2": {
+    "101": {
+      "owner": "Kadash_Kobreti",
+      "percent": 90,
+      "plantDays": 5
     },
-    "125": {
-      "percent": 119,
-      "lastUpdate": 1741637889318
+    "102": {
+      "owner": "Kadash_Kobreti",
+      "percent": 75,
+      "plantDays": 7
     }
   }
 }
