@@ -18,7 +18,7 @@ function loadWateringData() {
     if (fs.existsSync(DATA_FILE)) {
         return JSON.parse(fs.readFileSync(DATA_FILE));
     }
-    return { lastUpdate: null, lastMessageId: null };
+    return { lastUpdate: null, lastMessageId: null, customSections: {} };
 }
 
 function saveWateringData(data) {
@@ -31,7 +31,7 @@ function updatePlantDays() {
     const today = new Date().toISOString().split('T')[0];
     if (wateringData.lastUpdate !== today) {
         for (const userId in wateringData) {
-            if (userId === "lastMessageId" || userId === "lastUpdate" || userId === "lastDecreaseTime") continue;
+            if (["lastMessageId", "lastUpdate", "lastDecreaseTime", "customSections"].includes(userId)) continue;
             for (const houseNumber in wateringData[userId]) {
                 wateringData[userId][houseNumber].plantDays += 1;
             }
@@ -46,7 +46,7 @@ function decreaseWateringLevels() {
     if (!wateringData.lastDecreaseTime || now - wateringData.lastDecreaseTime >= 60 * 60 * 1000) {
         wateringData.lastDecreaseTime = now;
         for (const userId in wateringData) {
-            if (userId === "lastMessageId" || userId === "lastUpdate" || userId === "lastDecreaseTime") continue;
+            if (["lastMessageId", "lastUpdate", "lastDecreaseTime", "customSections"].includes(userId)) continue;
             for (const houseNumber in wateringData[userId]) {
                 if (wateringData[userId][houseNumber].percent > 0) {
                     wateringData[userId][houseNumber].percent -= 4;
@@ -76,7 +76,7 @@ client.once('ready', async () => {
         const grouped = {};
 
         for (const userId in wateringData) {
-            if (userId === "lastMessageId" || userId === "lastUpdate" || userId === "lastDecreaseTime") continue;
+            if (["lastMessageId", "lastUpdate", "lastDecreaseTime", "customSections"].includes(userId)) continue;
             for (const houseNumber in wateringData[userId]) {
                 const house = wateringData[userId][houseNumber];
                 if (!house || house.percent === undefined || house.plantDays === undefined || !house.owner) continue;
@@ -88,7 +88,12 @@ client.once('ready', async () => {
         }
 
         for (const owner in grouped) {
-            embed.addFields({ name: `🏡 ${owner} namai:`, value: grouped[owner].join("\n"), inline: false });
+            let section = wateringData.customSections?.[owner] || "";
+            embed.addFields({
+                name: `🏡 ${owner} namai:`,
+                value: (section ? `📝 ${section}\n` : "") + grouped[owner].join("\n"),
+                inline: false
+            });
         }
 
         try {
@@ -106,6 +111,54 @@ client.once('ready', async () => {
             saveWateringData(wateringData);
         }
     }, 60 * 1000);
+});
+
+client.on('messageCreate', async message => {
+    if (!message.content.startsWith('%') || message.author.bot) return;
+
+    const args = message.content.slice(1).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+    const userId = message.author.id;
+
+    if (!wateringData[userId]) {
+        wateringData[userId] = {};
+    }
+
+    if (command === 'addhouse') {
+        const [number, ...ownerParts] = args;
+        const owner = ownerParts.join(" ");
+        if (!number || !owner) return message.reply("❌ Naudojimas: `%addhouse [namo nr] [savininkas]`");
+        wateringData[userId][number] = { owner, percent: 150, plantDays: 1 };
+        saveWateringData(wateringData);
+        return message.reply(`✅ Namas ${number} pridėtas.`);
+    }
+
+    if (command === 'set') {
+        const [number, percent, owner, days] = args;
+        if (!number || !percent || !owner || !days) return message.reply("❌ Naudojimas: `%set [namo nr] [laistymo %] [savininkas] [dienos]`");
+        if (!wateringData[userId][number]) return message.reply("❌ Toks namas neegzistuoja.");
+        wateringData[userId][number] = { owner, percent: parseInt(percent), plantDays: parseInt(days) };
+        saveWateringData(wateringData);
+        return message.reply(`✅ Namas ${number} atnaujintas.`);
+    }
+
+    if (command === 'delhouse') {
+        const number = args[0];
+        if (!number || !wateringData[userId][number]) return message.reply("❌ Toks namas neegzistuoja.");
+        delete wateringData[userId][number];
+        saveWateringData(wateringData);
+        return message.reply(`✅ Namas ${number} ištrintas.`);
+    }
+
+    if (command === 'skiltis') {
+        const [owner, ...sectionParts] = args;
+        const text = sectionParts.join(" ");
+        if (!owner || !text) return message.reply("❌ Naudojimas: `%skiltis [savininkas] [tekstas]`");
+        if (!wateringData.customSections) wateringData.customSections = {};
+        wateringData.customSections[owner] = text;
+        saveWateringData(wateringData);
+        return message.reply(`✅ Pridėta skiltis savininkui ${owner}.`);
+    }
 });
 
 client.login(TOKEN);
