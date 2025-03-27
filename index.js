@@ -38,9 +38,11 @@ client.once('ready', async () => {
 
     const grouped = {};
 
-    for (const userId in wateringData) {
-      for (const houseNumber in wateringData[userId]) {
-        const house = wateringData[userId][houseNumber];
+for (const userId in wateringData) {
+  if (["lastUpdate", "lastMessageId", "lastDecreaseTime", "customSections"].includes(userId)) continue;
+  for (const houseNumber in wateringData[userId]) {
+    const house = wateringData[userId][houseNumber];
+    if (!house || !house.owner) continue;
         if (!house?.owner) continue;
         if (!grouped[house.owner]) grouped[house.owner] = [];
         grouped[house.owner].push(`📌 Namas ${houseNumber}nr - 🌿 **${house.percent}%** | 🕒 **${house.plantDays} dienos**`);
